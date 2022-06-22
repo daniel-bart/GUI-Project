@@ -1,118 +1,145 @@
-#include <iostream> 
+#include <iostream>
 #include <algorithm>
 #include <vector>
 #include <array>
+#include <map>
 #include "imgui.h"
 #include "implot.h"
-#include<thread>
 #include <misc/cpp/imgui_stdlib.h>
 #include <misc/cpp/imgui_stdlib.cpp>
 #include "render.hpp"
 
 
-static const double carbon = 12.011;
-static const double hydrogen = 1.0080;
-static const double nitrogen = 14.007;
-static const double sulfur = 32.06;
-
 //Input Formular sting from user
-std::string input;
-// Saving element counts in global array C, H, N, S
-std::array<std::uint32_t,4> element_counter{0, 0, 0, 0};
+std::string user_input_formular;
+//Mass of Formular
+double complete_mass{0.0};
+//Array to save percentages
+std::array<double,5> mass_percentages;
 
+//Structure wich initializes/constructs with all masses as map and initializing a counting map
+struct Data
+{
+    std::map<const char*, std::uint32_t> count;
+    std::map<const char*, double> mass;
+    Data()
+    {
+    const std::vector<const char*> element_symbols{"H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
+    "Na", "Mg", "Al", "Si", "P", "S", "Cl", "Ar",
+    "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr",
+    "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe",
+    "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf",
+    "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra"};
+    const std::vector<double> element_masses{1.008,4.002,6.941,9.012,10.811,12.011,14.007,15.999,18.998,20.18,22.99,24.305,26.982,28.086,30.974,32.065,35.453,39.948,
+    39.098,40.078,44.956,47.867,50.942,51.996,54.938,55.845,58.933,58.693,63.546,65.38,69.723,72.64,74.922,78.96,79.904,83.798,85.468,87.62,88.906,91.224,92.906,
+    95.96,98,101.07,102.906,106.42,107.868,112.411,114.818,118.71,121.76,127.6,126.904,131.293,132.905,137.327,138.905,140.116,140.908,144.242,145,150.36,151.964,157.25,
+    158.925,162.5,164.93,167.259,168.934,173.054,174.967,178.49,180.948,183.84,186.207,190.23,192.217,195.084,196.967,200.59,204.383,207.2,208.98,210,210,222,223,226};
+    for(std::size_t i = 0; i < element_symbols.size(); ++i){
+        Data::count[element_symbols[i]] = 0;
+        Data::mass[element_symbols[i]] = element_masses[i];
+    }
+    }
+
+
+};
+
+Data Elements;
 /**
  * @brief Searches string for stoichiometry
- * 
- * @param element 
- * @return std::uint32_t 
+ *
+ * @param element
+ * @return std::uint32_t
  */
-std::uint32_t distribution_of_element(const char &element, const std::string &formular){
-std::size_t element_found{formular.find(element)};
-std::uint32_t temp_count{0};
-while(element_found != std::string::npos){
-        if(std::isdigit(formular[element_found+1])){
-            if(std::isdigit(formular[element_found+2])){
-                if(std::isdigit(formular[element_found+3])){
-                    //Numbers start at ASCII of 48
-                    temp_count += (formular[element_found+1]-48)*100 + (formular[element_found+2]-48) * 10 + (formular[element_found+3]-48);
+std::uint32_t count_of_element(const char* element, const std::string &formular){
+    //ToDo find false friends! like Ca and C or Si and S
+    std::size_t element_found{formular.find(element)};
+    std::uint32_t temp_count{0};
+    std::size_t element_length{strlen(element)};
+    std::size_t element_count_pos = element_found + element_length; //count begins after found pos + length of element name
+    while(element_found != std::string::npos){
+        //distinguish if elementcout is over 1/10/100
+            if(std::isdigit(formular[element_count_pos])){
+                if(std::isdigit(formular[element_count_pos+1])){
+                    if(std::isdigit(formular[element_count_pos+2])){
+                        //Numbers start at ASCII of 48
+                        temp_count += (formular[element_count_pos]-48)*100 + (formular[element_count_pos+1]-48) * 10 + (formular[element_count_pos+2]-48);
+                    }
+                    else{
+                        temp_count += (formular[element_count_pos]-48)*10 + (formular[element_count_pos+1]-48);
+                    }
                 }
                 else{
-                    temp_count += (formular[element_found+1]-48)*10 + (formular[element_found+2]-48);
+                    temp_count += (formular[element_count_pos]-48);
                 }
             }
             else{
-                temp_count += (formular[element_found+1]-48);
-            }
+                temp_count += 1;
+                }
+            element_found = formular.find(element, element_count_pos);
+            element_count_pos = element_found + element_length;
         }
-        else{
-            temp_count += 1;
-            }
-    element_found = formular.find(element, element_found+1);
-    }
-    return temp_count;
+        return temp_count;
 }
+
 /**
- * @brief Convert String input into chemical composition
- * 
- * @param input 
+ * @brief Calculates the masspercantage of elements
+ *
+ * @param value
+ * @return s
+ */
+void mass_percentage(){
+    if(complete_mass > 0.0){
+        //ToDo BUG! Elements.mass equals to zero... why?
+        mass_percentages[0]= (( Elements.count["C"]* Elements.mass["C"]) / complete_mass) *100;
+        mass_percentages[1]= (( Elements.count["H"]* Elements.mass["H"]) / complete_mass) *100;
+        mass_percentages[2]= (( Elements.count["N"]* Elements.mass["N"]) / complete_mass) *100;
+        mass_percentages[3]= (( Elements.count["S"]* Elements.mass["S"]) / complete_mass) *100;
+        mass_percentages[4]= 100.0-mass_percentages[0]-mass_percentages[1]-mass_percentages[2]-mass_percentages[3];
+    }
+}
+
+
+/**
+ * @brief Convert String input into chemical composition and calc EA
+ *
+ * @param input
  */
 void split_into_elements(std::string &input){
-    //ToDo: Find Inorganic Elements and handle them for TG calc
-    std::transform(input.begin(), input.end(),input.begin(),[](unsigned char x){return std::tolower(x);});
+    complete_mass = 0.0;
+    //iterating over elements, searching for string hits and adding their counts
+    //also calc the complete mass of the given formular
+    for(auto const &pair : Elements.count){
+        Elements.count[pair.first] = count_of_element(pair.first, input);
+        std::cout << pair.first <<":" << pair.second <<  std::endl;
+        if(pair.second > 0){
+        complete_mass += pair.second * Elements.mass[pair.first];
 
-    element_counter[0] = distribution_of_element('c', input);
-    element_counter[1] = distribution_of_element('h', input);
-    element_counter[2] = distribution_of_element('n', input);
-    element_counter[3] = distribution_of_element('s', input);
-
-    input= "C" + std::to_string(element_counter[0]) + "H" + std::to_string(element_counter[1]) + "N" + std::to_string(element_counter[2]) + "S" +std::to_string(element_counter[3]);
-
-
-
-}
-/**
- * @brief Calculates the masspercantage of the given element
- * 
- * @param value 
- * @return std::string 
- */
-double mass_percentage(const char &element){
-    double complete_mass = element_counter[0] * carbon + element_counter[1] * hydrogen + element_counter[2] * nitrogen + element_counter[3] * sulfur;
-    double temp_percentage{0};
-    if(complete_mass > 0){
-    switch(element){
-        case 'c':
-        temp_percentage = ((element_counter[0] * carbon) / complete_mass) *100;
-        break;
-        case 'h':
-        temp_percentage = ((element_counter[1] * hydrogen) / complete_mass) *100;
-        break;
-        case 'n':
-        temp_percentage = ((element_counter[2] * nitrogen) / complete_mass) *100;
-        break;
-        case 's':
-        temp_percentage = ((element_counter[3] * sulfur) / complete_mass) *100;
-        break;
-    }}
-    else{
-        return 0.0;
+        }
     }
-    return temp_percentage;
+    for(auto const &pair : Elements.mass){
+        std::cout << pair.first << ": " << pair.second << std::endl;
+    }
+    //calculating the percentages for the EA Elements.
+    mass_percentage();
+
+
+
 }
+
 
 
 
 
 
 void render()
-{   
+{
     ImGui::NewFrame();
     ImGui::Begin("EA");
-    ImGui::InputText("Formula", &input); 
+    ImGui::InputText("Formula", &user_input_formular);
     if(ImGui::Button("Submit")){
-       split_into_elements(input);
+       split_into_elements(user_input_formular);
     }
-        ImGui::BeginTable("Masspercentages of Elements", 4);
+        ImGui::BeginTable("Masspercentages of Elements", 5);
             ImGui::TableNextColumn();
             ImGui::Text("C/m%%");
             ImGui::TableNextColumn();
@@ -122,19 +149,23 @@ void render()
             ImGui::TableNextColumn();
             ImGui::Text("S/m%%");
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentage('c'));
+            ImGui::Text("Residue/m%%");
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentage('h'));
+            ImGui::Text("%f", mass_percentages[0]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentage('n'));
+            ImGui::Text("%f", mass_percentages[1]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentage('s'));
+            ImGui::Text("%f", mass_percentages[2]);
+            ImGui::TableNextColumn();
+            ImGui::Text("%f", mass_percentages[3]);
+            ImGui::TableNextColumn();
+            ImGui::Text("%f", mass_percentages[4]);
         ImGui::EndTable();
     ImGui::End();
-   
 
 
-    
+
+
 
     ImGui::Render();
 }
