@@ -22,6 +22,9 @@ struct Data
 {
     std::map<std::string, std::uint32_t> count;
     std::map<std::string, double> mass;
+    const std::vector<std::string> false_friends {"Cl", "Ca", "Cr", "Co", "Cu", "Cd", "Cs", "Ce", "He", "Ho",
+    "Hf", "Hg", "Ne", "Na", "Ni", "Nb", "Nd", "Si", "Sc", "Se", "Sr", "Sn", "Sb", "Sm", "Ba", "Bi", "Be",
+    "Br", "Pd", "Pr", "Pm", "Pt", "Pb", "Po", "Fe", "Fr", "Kr", "In", "Ir", "Yb", "Os"};
     Data()
     {
     const std::vector<std::string> element_symbols{"H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
@@ -51,13 +54,18 @@ Data Elements;
  * @return std::uint32_t
  */
 std::uint32_t count_of_element(const std::string &element, const std::string &formular){
-    //ToDo find false friends! like Ca and C or Si and S
     std::size_t element_found{formular.find(element)};
     std::uint32_t temp_count{0};
     std::size_t element_length{element.length()};
     std::size_t element_count_pos = element_found + element_length; //count begins after found pos + length of element name
     while(element_found != std::string::npos){
-        //distinguish if elementcout is over 1/10/100
+        //Check if count_pos is out of string range
+        if(element_count_pos >= formular.length()){
+        temp_count += 1;
+        break;
+        }
+        else{
+        //distinguish if elementcout is over 1/10/100 or if it's two following letters
             if(std::isdigit(formular[element_count_pos])){
                 if(std::isdigit(formular[element_count_pos+1])){
                     if(std::isdigit(formular[element_count_pos+2])){
@@ -73,11 +81,18 @@ std::uint32_t count_of_element(const std::string &element, const std::string &fo
                 }
             }
             else{
+                //Check if Element symbol + string at counting position equals a false friend like (C + e -> Ce) and then skip the counting for that hit
+                if(element_length == 1 and std::find(Elements.false_friends.begin(), Elements.false_friends.end(), element + formular.at(element_count_pos)) != Elements.false_friends.end()){
+                std::cout << "False Friend detected!" << std::endl;
+                }
+                else{
                 temp_count += 1;
+                }
                 }
             element_found = formular.find(element, element_count_pos);
             element_count_pos = element_found + element_length;
         }
+    }
         return temp_count;
 }
 
@@ -89,12 +104,17 @@ std::uint32_t count_of_element(const std::string &element, const std::string &fo
  */
 void mass_percentage(){
     if(complete_mass > 0.0){
-        //Dont use pointers (const char arrays) as keys!! new char array equals new key -.-
+        //Dont use pointers (const char * arrays) as keys!! new char array equals new key (map uses pointer for comparison, not the string)
         mass_percentages[0]= (( Elements.count["C"]* Elements.mass["C"]) / complete_mass) *100;
         mass_percentages[1]= (( Elements.count["H"]* Elements.mass["H"]) / complete_mass) *100;
         mass_percentages[2]= (( Elements.count["N"]* Elements.mass["N"]) / complete_mass) *100;
         mass_percentages[3]= (( Elements.count["S"]* Elements.mass["S"]) / complete_mass) *100;
         mass_percentages[4]= 100.0-mass_percentages[0]-mass_percentages[1]-mass_percentages[2]-mass_percentages[3];
+    }
+    else{
+        for(auto &val : mass_percentages){
+            val = 0.0;
+        }
     }
 }
 
@@ -130,11 +150,12 @@ void render()
 {
     ImGui::NewFrame();
     ImGui::Begin("EA");
-    ImGui::InputText("Formula", &user_input_formular);
-    if(ImGui::Button("Submit")){
-       split_into_elements(user_input_formular);
-    }
-        ImGui::BeginTable("Masspercentages of Elements", 5);
+    {
+        ImGui::InputText("Formula", &user_input_formular);
+        if(ImGui::Button("Submit")){
+        split_into_elements(user_input_formular);
+            }
+        if(ImGui::BeginTable("Masspercentages of Elements", 5, ImGuiTableFlags_Borders)){
             ImGui::TableNextColumn();
             ImGui::Text("C/m%%");
             ImGui::TableNextColumn();
@@ -156,6 +177,8 @@ void render()
             ImGui::TableNextColumn();
             ImGui::Text("%f", mass_percentages[4]);
         ImGui::EndTable();
+        }
+    }
     ImGui::End();
 
 
