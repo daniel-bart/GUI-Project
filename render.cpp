@@ -184,6 +184,7 @@ void estimate_residue_formular(std::string &estimate){
         if(pair.second > 0){
             //Check, that element is not in list of volatile elements, K is hardcoded cause of Kr
             //ToDo: Handle Halogenides as well as chalcogenes
+            //May try adding the charges of the metalions and compare with halides, chalcogenes and at last oxides
             if(std::find(Elements.volatile_elements.begin(), Elements.volatile_elements.end(), pair.first) == Elements.volatile_elements.end() or pair.first == "K"){
                 estimate += get_oxide(pair.first);
         }
