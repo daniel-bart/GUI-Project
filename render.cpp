@@ -23,7 +23,11 @@ double complete_count_EA{0.0};
 std::array<double,5> mass_percentages;
 std::array<double,5> atom_percentages;
 
-//Structure wich initializes/constructs with all masses as map and initializing a counting map
+
+/**
+ * @brief Structure wich initializes/constructs with all masses as map and initializing a counting map
+ * 
+ */
 struct Data
 {
     std::map<std::string, std::uint32_t> EA_count;
@@ -184,7 +188,6 @@ void estimate_residue_formular(std::string &estimate){
         if(pair.second > 0){
             //Check, that element is not in list of volatile elements, K is hardcoded cause of Kr
             //ToDo: Handle Halogenides as well as chalcogenes
-            //May try adding the charges of the metalions and compare with halides, chalcogenes and at last oxides
             if(std::find(Elements.volatile_elements.begin(), Elements.volatile_elements.end(), pair.first) == Elements.volatile_elements.end() or pair.first == "K"){
                 estimate += get_oxide(pair.first);
         }
