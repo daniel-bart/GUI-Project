@@ -26,7 +26,7 @@ std::array<double,5> atom_percentages;
 
 /**
  * @brief Structure wich initializes/constructs with all masses as map and initializing a counting map
- * 
+ *
  */
 struct Data
 {
@@ -43,7 +43,8 @@ struct Data
     {"Rh", 0}, {"Pd", 0}, {"Ag", 0}, {"Cd", +2}, {"In", +3}, {"Sn", +4}, {"Sb", +4}, {"Cs", +1}, {"Ba", +2}, {"La", +3}, {"Ce", +4}, {"Pr", +3}, {"Nd", +3}, {"Sm", +3}, {"Eu", +3},{"Gd", +3},
     {"Tb", +3},{"Dy", +3},{"Ho", +3},{"Er", +3},{"Tm", +3},{"Yb", +3},{"Lu", +3},{"Hf", +4}, {"Ta", +5}, {"W", +6}, {"Re", +7}, {"Os", +0},{"Ir", +4}, {"Pt", 0}, {"Au", 0}, {"Hg", 0}, {"Tl", +1},
     {"Pb", +2}, {"Bi", +3}, {"P", +5}, {"S", +6}, {"As", +5}, {"Se", +6}, {"Te", +6}};
-    const std::vector<std::string> volatile_elements {"H", "He", "N", "C", "O", "Ne", "Ar", "Kr", "Xe"};
+    //Added Halogens and Chalcogene, cause they are volatile if no metal is present
+    const std::vector<std::string> volatile_elements {"H", "He", "N", "C", "O", "Ne", "Ar", "Kr", "Xe", "F", "Cl", "Br", "I", "S", "P", "As", "Se", "Te"};
     Data()
     {
     const std::vector<std::string> element_symbols{"H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne",
@@ -155,8 +156,15 @@ void mass_percentages_EA(){
 }
 
 //Search for inorganic elements, that do not leave compound when burned: All elements except: H, He, Ne, Ar, Kr, Xe, Rn, C, N, O,
-//Special Exception: F, Cl, Br, I (forming Salts), Sulfur (SO2, Sulfates with Metalcations), Phosphor (P4O10 or Phophates), Se (SeO2 or Selenates), same for Sb and Te
+//Special Exception: F, Cl, Br, I (forming Salts), Sulfur (SO2, Sulfates with Metalcations), Phosphor (P4O10 or Phophates), Se (SeO2 or Selenates), same for Te
+//But if no Metal is present those elements will be volatile
 //let user correct residue formular
+std::string get_halchal(const std::string &element, std::map<std::string, std::uint32_t> &map){
+    //Todo get halgenids etc and decrease count of that element in map
+std::string temp_form;
+
+    return temp_form;
+}
 std::string get_oxide(const std::string &element){
     std::string temp_form;
     switch(Elements.non_volatile_elements[element])
@@ -184,12 +192,23 @@ std::string get_oxide(const std::string &element){
 }
 void estimate_residue_formular(std::string &estimate){
     estimate = "";
+    //tempory map for matching metals with halogens and chalcogenes
+    std::map<std::string, std::uint32_t> temp_elements{{"F", Elements.TG_count["F"]}, {"Cl", Elements.TG_count["Cl"]}, {"Br", Elements.TG_count["Br"]}, {"I", Elements.TG_count["I"]}, {"S", Elements.TG_count["S"]}, {"P", Elements.TG_count["P"]}, {"Se", Elements.TG_count["Se"]}, {"Te", Elements.TG_count["Te"]}, {"As", Elements.TG_count["As"]}};
+    auto halchal_present = [&temp_elements](){for(auto const &val: temp_elements){if(val.second > 0){return true;}}return false;};
     for(auto const &pair : Elements.TG_count){
         if(pair.second > 0){
-            //Check, that element is not in list of volatile elements, K is hardcoded cause of Kr
-            //ToDo: Handle Halogenides as well as chalcogenes
-            if(std::find(Elements.volatile_elements.begin(), Elements.volatile_elements.end(), pair.first) == Elements.volatile_elements.end() or pair.first == "K"){
-                estimate += get_oxide(pair.first);
+            //Check, that element is not in list of volatile elements, K is hardcoded cause of Kr false hits, also B.
+            //short: Get non volatile elements (most of them are metals)
+            if(std::find(Elements.volatile_elements.begin(), Elements.volatile_elements.end(), pair.first) == Elements.volatile_elements.end() | pair.first == "K" |pair.first == "B"){
+                //check if there are halogens or chalcogens present
+                if(halchal_present()){
+                    //get halogenids and chalcogenids stöchiometrie
+                    estimate += get_halchal(pair.first, temp_elements);
+                }
+                else{
+                    //if no hal and chalcs present, get oxides of elements
+                    estimate += get_oxide(pair.first);
+                }
         }
         }
 
