@@ -1,4 +1,4 @@
 # GUI-Project
 
-- Elemental analysis calc project based on ImGui
+- Elemental analysis/ TG and etc calc project based on ImGui
 - Work in progress
