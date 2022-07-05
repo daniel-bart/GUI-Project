@@ -8,6 +8,7 @@
 #include <misc/cpp/imgui_stdlib.h>
 #include <misc/cpp/imgui_stdlib.cpp>
 #include "render.hpp"
+#include <sstream>
 
 
 //Input Formular string from user
@@ -23,6 +24,15 @@ double complete_count_EA{0.0};
 std::array<double,5> mass_percentages;
 std::array<double,5> atom_percentages;
 
+//set precision when converting to string
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 1)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
+}
 
 /**
  * @brief Structure wich initializes/constructs with all masses as map and initializing a counting map
@@ -160,34 +170,115 @@ void mass_percentages_EA(){
 //But if no Metal is present those elements will be volatile
 //let user correct residue formular
 std::string get_halchal(const std::string &element, std::map<std::string, std::uint32_t> &map){
-    //Todo get halgenids etc and decrease count of that element in map
-std::string temp_form;
+    std::string temp_form{element};
+    std::uint32_t ox_num = Elements.non_volatile_elements[element];
+    std::map<std::string, std::uint32_t> hals {{"F", 0}, {"Cl", 0}, {"Br", 0}, {"I", 0},{"S",0}, {"P",0},{"Se",0}, {"Te",0}, {"O",0}};
+
+            //for P,S,Se,Te i has to be further incremented, cause of their charge (eg. PO4 3-)
+            for(std::uint32_t i = 0; i != ox_num; i++){
+                if(map["F"] > 0){
+                hals["F"]++;
+                map["F"]--;
+                }
+                else if(map["Cl"] > 0){
+                hals["Cl"]++;
+                map["Cl"]--;
+                }
+                else if(map["Br"] > 0){
+                hals["Br"]++;
+                map["Br"]--;
+                }
+                else if(map["I"] > 0){
+                hals["I"]++;
+                map["I"]--;
+                }
+                else if(map["S"] > 0 and (ox_num-i) >= 2){
+                hals["S"]++;
+                map["S"]--;
+                i++;
+                }
+                else if(map["P"]> 0 and (ox_num-i) >= 3){
+                hals["P"]++;
+                map["P"]--;
+                i+=2;
+                }
+                else if(map["Se"] > 0 and (ox_num-i) >= 2){
+                hals["Se"]++;
+                map["Se"]--;
+                i++;
+                }
+                else if(map["Te"] > 0 and (ox_num-i) >= 2){
+                hals["Te"]++;
+                map["Te"]--;
+                i++;
+                }
+                else if((ox_num-i) >= 2){
+                hals["O"]++;
+                i++;
+                }
+            }
+            for(auto const &val : hals){
+                if(val.second > 1){
+                    if(val.first == "S"){
+                        temp_form += "(SO4)" + to_string_with_precision(val.second);
+                    }
+                    else if(val.first == "P"){
+                        temp_form += "(PO4)" + to_string_with_precision(val.second);
+                    }
+                    else if(val.first == "Se"){
+                        temp_form += "(SeO4)" + to_string_with_precision(val.second);
+                    }
+                    else if( val.first == "Te"){
+                        temp_form += "(TeO4)" + to_string_with_precision(val.second);
+                    }
+                    else{
+                        temp_form += val.first + to_string_with_precision(val.second);
+                    }}
+                else if(val.second > 0){
+                    if(val.first == "S"){
+                        temp_form += "(SO4)";
+                    }
+                    else if(val.first == "P"){
+                        temp_form += "(PO4)";
+                    }
+                    else if(val.first == "Se"){
+                        temp_form += "(SeO4)";
+                    }
+                    else if( val.first == "Te"){
+                        temp_form += "(TeO4)";
+                    }
+                    else{
+                        temp_form += val.first;
+                    }
+            }
+            }
 
     return temp_form;
 }
 std::string get_oxide(const std::string &element){
     std::string temp_form;
+    auto count_alg = [](const std::uint32_t &val)->std::string{if(val > 1){return std::to_string(val);} else{return "";}};
     switch(Elements.non_volatile_elements[element])
     {
         case 0:
         return element;
         case +1:
-        return element + std::to_string(Elements.TG_count[element]*2)+ "O"+std::to_string(Elements.TG_count[element]);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*0.5);
         case +2:
-        return element + std::to_string(Elements.TG_count[element])+ "O"+std::to_string(Elements.TG_count[element]);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]);
         case +3:
-        return element + std::to_string(Elements.TG_count[element]*2)+ "O"+std::to_string(Elements.TG_count[element]*3);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*1.5);
         case +4:
-        return element + std::to_string(Elements.TG_count[element])+ "O"+std::to_string(Elements.TG_count[element]*2);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*2);
         case +5:
-        return element + std::to_string(Elements.TG_count[element]*2)+ "O"+std::to_string(Elements.TG_count[element]*5);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*2.5);
         case +6:
-        return element + std::to_string(Elements.TG_count[element])+ "O"+std::to_string(Elements.TG_count[element]*3);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*3);
         case +7:
-        return element + std::to_string(Elements.TG_count[element]*2)+ "O"+std::to_string(Elements.TG_count[element]*7);
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*3.5);
 
         default:
-        return element + std::to_string(Elements.TG_count[element]);
+        return element + count_alg(Elements.TG_count[element]);
     }
 }
 void estimate_residue_formular(std::string &estimate){
@@ -197,17 +288,22 @@ void estimate_residue_formular(std::string &estimate){
     auto halchal_present = [&temp_elements](){for(auto const &val: temp_elements){if(val.second > 0){return true;}}return false;};
     for(auto const &pair : Elements.TG_count){
         if(pair.second > 0){
+            std::uint32_t i{0};
             //Check, that element is not in list of volatile elements, K is hardcoded cause of Kr false hits, also B.
             //short: Get non volatile elements (most of them are metals)
             if(std::find(Elements.volatile_elements.begin(), Elements.volatile_elements.end(), pair.first) == Elements.volatile_elements.end() | pair.first == "K" |pair.first == "B"){
                 //check if there are halogens or chalcogens present
-                if(halchal_present()){
-                    //get halogenids and chalcogenids stöchiometrie
-                    estimate += get_halchal(pair.first, temp_elements);
-                }
-                else{
-                    //if no hal and chalcs present, get oxides of elements
-                    estimate += get_oxide(pair.first);
+                while(i != pair.second){
+                    if(halchal_present()){
+                        //get halogenids and chalcogenids stöchiometrie
+                        estimate += get_halchal(pair.first, temp_elements);
+                        i++;
+                    }
+                    else{
+                        //if no hal and chalcs present, get oxides of elements
+                        estimate += get_oxide(pair.first);
+                        i++;
+                    }
                 }
         }
         }
@@ -222,7 +318,9 @@ void estimate_residue_formular(std::string &estimate){
  */
 void split_into_elements(std::string &input, const std::string &use_case){
 
+    auto count_alg = [](const std::uint32_t &val)->std::string{if(val > 1){return std::to_string(val);} else{return "";}};
     //Differentiate between EA and TG
+    //may change to switch syntax later
     if(use_case == "EA"){
     complete_mass_EA = 0.0;
     //iterating over elements, searching for string hits and adding their counts
@@ -238,7 +336,7 @@ void split_into_elements(std::string &input, const std::string &use_case){
     input ="";
     for(auto const &pair: Elements.EA_count){
         if(pair.second > 0){
-            input += pair.first + std::to_string(pair.second);
+            input += pair.first + count_alg(pair.second);
         }
     }
 
@@ -293,27 +391,27 @@ void render()
             ImGui::TableNextColumn();
             ImGui::Text("m%%");
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentages[0]);
+            ImGui::Text("%.2f", mass_percentages[0]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentages[1]);
+            ImGui::Text("%.2f", mass_percentages[1]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentages[2]);
+            ImGui::Text("%.2f", mass_percentages[2]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentages[3]);
+            ImGui::Text("%.2f", mass_percentages[3]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", mass_percentages[4]);
+            ImGui::Text("%.2f", mass_percentages[4]);
             ImGui::TableNextColumn();
             ImGui::Text("at%%");
              ImGui::TableNextColumn();
-            ImGui::Text("%f", atom_percentages[0]);
+            ImGui::Text("%.2f", atom_percentages[0]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", atom_percentages[1]);
+            ImGui::Text("%.2f", atom_percentages[1]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", atom_percentages[2]);
+            ImGui::Text("%.2f", atom_percentages[2]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", atom_percentages[3]);
+            ImGui::Text("%.2f", atom_percentages[3]);
             ImGui::TableNextColumn();
-            ImGui::Text("%f", atom_percentages[4]);
+            ImGui::Text("%.2f", atom_percentages[4]);
         ImGui::EndTable();
         }
     }
@@ -322,7 +420,7 @@ void render()
      ImGui::Begin("TG");
     {
         ImGui::InputText("Formula", &user_input_TG);
-        if(ImGui::Button("Submit")){
+        if(ImGui::Button("Estimate")){
         split_into_elements(user_input_TG, "TG");
         }
         ImGui::InputText("Estimated Residue", &residue_formular);
@@ -333,7 +431,7 @@ void render()
             ImGui::TableNextColumn();
             ImGui::Text("Estimated mass in m%%");
             ImGui::NextColumn();
-            ImGui::Text("%f", mass_TG_residue/complete_mass_TG*100);
+            ImGui::Text("%.2f", mass_TG_residue/complete_mass_TG*100);
         ImGui::EndTable();}
     }
     ImGui::End();
