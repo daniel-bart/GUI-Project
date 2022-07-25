@@ -24,14 +24,33 @@ double complete_count_EA{0.0};
 std::array<double,5> mass_percentages;
 std::array<double,5> atom_percentages;
 
-//set precision when converting to string
-template <typename T>
-std::string to_string_with_precision(const T a_value, const int n = 1)
+
+bool isInteger(double N)
 {
+    int X = N;
+
+    double temp = N - X;
+    if (temp > 0) {
+        return false;
+    }
+    return true;
+}
+//set precision when converting to string
+template<typename T>
+std::string to_string_with_precision(T a_value, const int n = 1)
+{
+    if(isInteger(a_value)){
+    std::ostringstream out;
+    out.precision(0);
+    out << std::fixed << a_value;
+    return out.str();
+    }
+    else{
     std::ostringstream out;
     out.precision(n);
     out << std::fixed << a_value;
     return out.str();
+    }
 }
 
 /**
@@ -79,13 +98,57 @@ struct Data
 };
 
 Data Elements;
+
+std::uint32_t count_char(const std::string &input, const char* p){
+    std::size_t hit{input.find(p)};
+    std::uint32_t count{0};
+    while(hit != std::string::npos)
+    {
+        count++;
+        hit = input.find(p, hit+1);
+    }
+    return count;
+}
+std::string check_brackets(const std::string &formular){
+    std::string temp_formular{formular};
+    std::uint32_t num_brackets{count_char(formular, "(")};
+    auto cast_to_string_obj = [](const char &x){int y{x-48}; return to_string_with_precision(y);};
+    if(num_brackets < 1){
+        return temp_formular;
+    }
+    else if(num_brackets < 2){
+        std::size_t bracket_begin{temp_formular.find("(")};
+        std::size_t bracket_end{temp_formular.find(")")};
+            if(isdigit(temp_formular[bracket_end+1])){
+                for(std::size_t i = bracket_begin+1; i != bracket_end; i++ ){
+                    if(std::isdigit(temp_formular[i])){
+                        temp_formular[i] = (temp_formular[i]-48)* (temp_formular[bracket_end+1]-48)+48;
+                    }
+                    else if(!std::isdigit(temp_formular[i+1])){
+                        temp_formular.insert(i+1, cast_to_string_obj(temp_formular[bracket_end+1]));
+                        bracket_end += 1;
+                        i++;
+                    }
+                }
+            }
+        temp_formular.erase(bracket_begin,1);
+        temp_formular.erase(bracket_end,2);
+        return temp_formular;
+        }
+        //ToDo multiple brackets
+    else{
+        return "Not Implemented";
+
+    }
+}
 /**
  * @brief Searches string for stoichiometry
  *
  * @param element
  * @return std::uint32_t
  */
-std::uint32_t count_of_element(const std::string &element, const std::string &formular){
+std::uint32_t count_of_element(const std::string &element, const std::string &formular_org){
+    std::string formular{check_brackets(formular_org)};
     std::size_t element_found{formular.find(element)};
     std::uint32_t temp_count{0};
     std::size_t element_length{element.length()};
@@ -258,28 +321,12 @@ std::string get_halchal(const std::string &element, std::map<std::string, std::u
 std::string get_oxide(const std::string &element){
     std::string temp_form;
     auto count_alg = [](const std::uint32_t &val)->std::string{if(val > 1){return std::to_string(val);} else{return "";}};
-    switch(Elements.non_volatile_elements[element])
-    {
-        case 0:
+        if(Elements.non_volatile_elements[element] == 0){
         return element;
-        case +1:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*0.5);
-        case +2:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]);
-        case +3:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*1.5);
-        case +4:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*2);
-        case +5:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*2.5);
-        case +6:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*3);
-        case +7:
-        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*3.5);
-
-        default:
-        return element + count_alg(Elements.TG_count[element]);
-    }
+        }
+        else{
+        return element + count_alg(Elements.TG_count[element])+ "O"+to_string_with_precision(Elements.TG_count[element]*Elements.non_volatile_elements[element]/2.0);
+        }
 }
 void estimate_residue_formular(std::string &estimate){
     estimate = "";
@@ -302,7 +349,7 @@ void estimate_residue_formular(std::string &estimate){
                     else{
                         //if no hal and chalcs present, get oxides of elements
                         estimate += get_oxide(pair.first);
-                        i++;
+                        i = pair.second;
                     }
                 }
         }
