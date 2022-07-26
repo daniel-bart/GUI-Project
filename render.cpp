@@ -111,34 +111,150 @@ std::uint32_t count_char(const std::string &input, const char* p){
 }
 std::string check_brackets(const std::string &formular){
     std::string temp_formular{formular};
-    std::uint32_t num_brackets{count_char(formular, "(")};
+    std::uint32_t num_brackets_open{count_char(formular, "(")};
+    std::uint32_t num_brackets_close{count_char(formular, ")")};
     auto cast_to_string_obj = [](const char &x){int y{x-48}; return to_string_with_precision(y);};
-    if(num_brackets < 1){
-        return temp_formular;
-    }
-    else if(num_brackets < 2){
-        std::size_t bracket_begin{temp_formular.find("(")};
-        std::size_t bracket_end{temp_formular.find(")")};
-            if(isdigit(temp_formular[bracket_end+1])){
-                for(std::size_t i = bracket_begin+1; i != bracket_end; i++ ){
-                    if(std::isdigit(temp_formular[i])){
-                        temp_formular[i] = (temp_formular[i]-48)* (temp_formular[bracket_end+1]-48)+48;
+    if(num_brackets_open == num_brackets_close){
+        //No Brackets
+        if(num_brackets_open == 0){
+            return temp_formular;
+        }
+        // One Bracket
+        else if(num_brackets_open == 1){
+            std::size_t bracket_begin{temp_formular.find("(")};
+            std::size_t bracket_end{temp_formular.find(")")};
+                if(isdigit(temp_formular[bracket_end+1])){
+                    char temp_multi{temp_formular[bracket_end+1]};
+                    for(std::size_t i = bracket_begin+1; i != bracket_end; i++ ){
+                        if(std::isdigit(temp_formular[i])){
+                            temp_formular[i] = (temp_formular[i]-48)* (temp_multi-48)+48;
+                        }
+                        else if(!std::isdigit(temp_formular[i+1]) and !std::islower(temp_formular[i+1])){
+                            //Todo what if number after last bracket is a 2 digit number?
+                            // Also in if statement before, what if 2 digit number? -> See element count alg
+                            temp_formular.insert(i+1, cast_to_string_obj(temp_multi));
+                            bracket_end += 1;
+                            i++;
+                        }
                     }
-                    else if(!std::isdigit(temp_formular[i+1])){
-                        temp_formular.insert(i+1, cast_to_string_obj(temp_formular[bracket_end+1]));
-                        bracket_end += 1;
-                        i++;
+                temp_formular.erase(bracket_begin,1);
+                temp_formular.erase(bracket_end,2);
+                }
+                else{
+                    temp_formular.erase(bracket_begin,1);
+                    temp_formular.erase(bracket_end,1);
+                }
+
+            return temp_formular;
+            }
+        //Multiple Brackets
+        else{
+            std::vector<std::size_t> opening_brackets;
+            std::vector<std::size_t> opening_brackets_temp;
+            std::vector<std::size_t> closing_brackets;
+            std::size_t bracket_begin{temp_formular.find("(")};
+            std::size_t bracket_end{temp_formular.find(")")};
+            //collect positions of pairs of opening and closing brackets in corresponding vec
+            while(bracket_begin != std::string::npos){
+                opening_brackets_temp.push_back(bracket_begin);
+                bracket_begin = temp_formular.find("(", bracket_begin+1);
+            }
+            while(bracket_end != std::string::npos){
+                closing_brackets.push_back(bracket_end);
+                bracket_end = temp_formular.find(")", bracket_end+1);
+            }
+            for(std::size_t a = 0; a != num_brackets_close; a++){
+                //search opening bracket with position lower than closing bracket and with the smallest diff
+                //kind of sorting bracket position so that openings_bracket[n] are matching the closing_brackets[n]
+                auto it = std::upper_bound(opening_brackets_temp.begin(), opening_brackets_temp.end(), closing_brackets[a]);
+                auto prev = std::prev(it);
+                opening_brackets.push_back(*prev);
+                opening_brackets_temp.erase(prev);
+
+            }
+
+            for(std::size_t i = 0; i != num_brackets_open; i++){
+                if(isdigit(temp_formular[closing_brackets[i]+1])){
+                    char temp_multi{temp_formular[closing_brackets[i]+1]};
+                    for(std::size_t j = opening_brackets[i]+1; j != closing_brackets[i]; j++ ){
+                        //Todo adjust for higher numbers
+                        if(std::isdigit(temp_formular[j])){
+                            temp_formular[j] = (temp_formular[j]-48)* (temp_multi-48)+48;
+                        }
+                        //Todo adjust for higher numbers
+                        else if(!std::isdigit(temp_formular[j+1]) and temp_formular[j] != ')' and temp_formular[j] != '(' and !std::islower(temp_formular[j+1])){
+                            temp_formular.insert(j+1, cast_to_string_obj(temp_multi));
+                            //positions of brackets following the insert(position >= j+1) have to be increased by one!
+                            for(auto &range : opening_brackets){
+                                if(range >= j+1){
+                                    range++;
+                                }
+                            }
+                            for(auto &range : closing_brackets){
+                                if(range >= j+1){
+                                    range++;
+                                }
+                            }
+                            //Todo adjust for higher numbers
+                            j++; //skip inserted number, carefull im 2 digit number!
+                        }
                     }
+                    //Todo adjust for higher numbers
+                temp_formular.erase(opening_brackets[i],1);
+                temp_formular.erase(closing_brackets[i],2);
+                std::size_t temp_open_bracket_pos{opening_brackets[i]};
+                std::size_t temp_close_bracket_pos{closing_brackets[i]};
+                //ranges have to be adjusted again for both deletions
+                for(auto &range : opening_brackets){
+                                if(range > temp_open_bracket_pos and range > temp_close_bracket_pos){
+                                    range-=3;
+                                }
+                                else if(range > temp_open_bracket_pos and range < temp_close_bracket_pos){
+                                    range--;
+                                }
+                            }
+                for(auto &range : closing_brackets){
+                                if(range > temp_open_bracket_pos and range > temp_close_bracket_pos){
+                                    range-= 3;
+                                }
+                                else if(range > temp_open_bracket_pos and range < temp_close_bracket_pos){
+                                    range--;
+                                }
+                            }
+
+                }
+                else{
+                temp_formular.erase(opening_brackets[i],1);
+                temp_formular.erase(closing_brackets[i],1);
+                //ranges have to be adjusted again but without the deletion of a number behind the closing bracket
+                std::size_t temp_open_bracket_pos{opening_brackets[i]};
+                std::size_t temp_close_bracket_pos{closing_brackets[i]};
+
+                for(auto &range : opening_brackets){
+                                if(range > temp_open_bracket_pos and range > temp_close_bracket_pos){
+                                    range-=2;
+                                }
+                                else if(range > temp_open_bracket_pos and range < temp_close_bracket_pos){
+                                    range--;
+                                }
+                            }
+                for(auto &range : closing_brackets){
+                                if(range > temp_open_bracket_pos and range > temp_close_bracket_pos){
+                                    range-= 2;
+                                }
+                                else if(range > temp_open_bracket_pos and range < temp_close_bracket_pos){
+                                    range--;
+                                }
+                            }
                 }
             }
-        temp_formular.erase(bracket_begin,1);
-        temp_formular.erase(bracket_end,2);
-        return temp_formular;
-        }
-        //ToDo multiple brackets
-    else{
-        return "Not Implemented";
+            return temp_formular;
 
+        }
+    }
+    else {
+        //ToDo wrong brackets
+        return "Error";
     }
 }
 /**
