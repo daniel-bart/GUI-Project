@@ -263,8 +263,8 @@ std::string check_brackets(const std::string &formular){
  * @param element
  * @return std::uint32_t
  */
-std::uint32_t count_of_element(const std::string &element, const std::string &formular_org){
-    std::string formular{check_brackets(formular_org)};
+std::uint32_t count_of_element(const std::string &element, const std::string &formular){
+    //std::string formular{check_brackets(formular_org)};
     std::size_t element_found{formular.find(element)};
     std::uint32_t temp_count{0};
     std::size_t element_length{element.length()};
@@ -479,13 +479,18 @@ void estimate_residue_formular(std::string &estimate){
  *
  * @param input
  */
-void split_into_elements(std::string &input, const std::string &use_case){
+void split_into_elements(std::string &formular, const std::string &use_case){
 
     auto count_alg = [](const std::uint32_t &val)->std::string{if(val > 1){return std::to_string(val);} else{return "";}};
+
+
     //Differentiate between EA and TG
     //may change to switch syntax later
     if(use_case == "EA"){
+    //check user input for brackets
+    std::string input{check_brackets(formular)};
     complete_mass_EA = 0.0;
+    complete_count_EA = 0;
     //iterating over elements, searching for string hits and adding their counts
     //also calc the complete mass of the given formular
     for(auto &pair : Elements.EA_count){
@@ -502,6 +507,7 @@ void split_into_elements(std::string &input, const std::string &use_case){
             input += pair.first + count_alg(pair.second);
         }
     }
+    //formular = input;
 
     //calculating the percentages for the EA Elements.
     mass_percentages_EA();
@@ -510,6 +516,8 @@ void split_into_elements(std::string &input, const std::string &use_case){
 
     else if (use_case == "TG")
     {
+        //check user input for brackets
+        std::string input{check_brackets(formular)};
         complete_mass_TG = 0.0;
         for(auto &pair : Elements.TG_count){
         pair.second = count_of_element(pair.first, input);
@@ -521,6 +529,8 @@ void split_into_elements(std::string &input, const std::string &use_case){
     estimate_residue_formular(residue_formular);
     }
     else if(use_case == "residue"){
+        //check user input for brackets
+        std::string input{check_brackets(formular)};
         mass_TG_residue = 0.0;
         for(auto &pair : Elements.TG_residue_count){
         pair.second = count_of_element(pair.first, input);
